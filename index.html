@@ -1,0 +1,324 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Heap Sort Visualizer</title>
+<style>
+  :root{
+    --bg: #fffaf6;
+    --card: #ffffff;
+    --muted: #8a8a8a;
+    --accent: #9ad1c7;
+    --accent-2: #f7c6d7;
+    --node-bg: #fff;
+    --node-border: #d6dbe3;
+    --shadow: 0 6px 18px rgba(46,49,55,0.06);
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:Inter, sans-serif;background:linear-gradient(180deg,var(--bg),#fff);padding:20px;color:#243142}
+  header{display:flex;align-items:center;gap:16px;margin-bottom:18px}
+  h1{margin:0;font-size:20px}
+  .sub{color:var(--muted);font-size:13px}
+
+  .app{display:grid;grid-template-columns:420px 1fr 360px;gap:18px;align-items:start}
+
+  .card{background:var(--card);border-radius:14px;padding:14px;box-shadow:var(--shadow)}
+  .controls .row{display:flex;gap:8px;align-items:center;margin-bottom:10px}
+  label{font-size:13px;color:var(--muted);min-width:110px}
+  input[type="text"]{flex:1;padding:8px 10px;border-radius:10px;border:1px solid var(--node-border);background:linear-gradient(180deg,#fff,#fbfbfb);font-family:monospace;}
+  button{background:linear-gradient(90deg,var(--accent),var(--accent-2));border:0;padding:8px 12px;border-radius:10px;color:#102226;cursor:pointer;font-weight:600;box-shadow:0 6px 14px rgba(154,209,199,0.18);}
+  .muted-btn{background:transparent;border:1px dashed var(--node-border);color:var(--muted);padding:8px 10px;}
+  .toggles{display:flex;gap:8px}
+
+  .visual.card{padding:12px;height:640px;display:flex;flex-direction:column}
+  .tree-wrap{flex:1;position:relative;border-radius:12px;background:linear-gradient(180deg,#fff,#fffafc);overflow:hidden;padding:18px;}
+  .node{position:absolute;transform:translate(-50%,-50%);min-width:44px;padding:10px 12px;border-radius:999px;background:var(--node-bg);border:2px solid var(--node-border);box-shadow:0 6px 18px rgba(36,49,66,0.06);text-align:center;font-weight:700;transition: box-shadow .18s, transform .18s;will-change: transform;}
+  .node.compare{box-shadow:0 10px 26px rgba(247,198,215,0.22);border-color:#f7c6d7;transform:scale(1.06)}
+  .node.swap{box-shadow:0 10px 26px rgba(154,209,199,0.22);border-color:#9ad1c7;transform:scale(1.08)}
+  .node.sorted{background:linear-gradient(90deg,#e7ffe6,#fff);border-color:#c6edce;color:#27663e}
+
+  .playback{display:flex;align-items:center;gap:10px;padding-top:10px}
+  .steps{font-family:monospace;background:#fbfbfb;padding:8px;border-radius:8px;border:1px solid var(--node-border);height:120px;overflow:auto}
+  .codebox{background:#fffafa;border-radius:8px;padding:10px;border:1px solid var(--node-border);font-family:monospace;font-size:13px}
+
+  .log pre{height:640px;overflow:auto;padding:12px;border-radius:10px;background:#fffafa;border:1px solid var(--node-border);}
+  .code-line{padding:4px 6px;border-radius:6px;font-family:monospace;font-size:13px;transition: background 0.3s;}
+  .code-line.active{background:#ffd6f5;font-weight:bold;}
+
+  footer{margin-top:12px;color:var(--muted);font-size:13px;text-align:center}
+  @media (max-width:1200px){.app{grid-template-columns:1fr;padding-bottom:60px}.visual{order:2}}
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <h1>Heap Sort Visualizer</h1>
+    <div class="sub">Pastel theme • Bezier animation • Max / Min live toggle</div>
+  </div>
+</header>
+
+<div class="app">
+  <!-- left controls -->
+  <div class="card controls">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+      <div style="font-weight:700">Controls</div>
+      <div class="small">Speed: <strong id="speedLabel">1×</strong></div>
+    </div>
+    <div class="row">
+      <label>Nhập mảng (phân tách bằng dấu phẩy)</label>
+      <input id="arrInput" type="text" value="4,10,3,5,1">
+    </div>
+    <div class="row">
+      <label></label>
+      <div style="display:flex;gap:8px">
+        <button id="setBtn">Set array</button>
+        <button id="randomBtn" class="muted-btn">Random</button>
+        <button id="shuffleBtn" class="muted-btn">Shuffle</button>
+      </div>
+    </div>
+    <div class="row">
+      <label>Heap Mode</label>
+      <div class="toggles">
+        <button id="modeBtn">Max-Heap</button>
+      </div>
+    </div>
+    <div class="row">
+      <label>Playback</label>
+      <div style="display:flex;gap:8px">
+        <button id="playBtn" class="big">▶ Play</button>
+        <button id="stepBack">◀ Step</button>
+        <button id="stepFwd">Step ▶</button>
+        <button id="resetBtn" class="muted-btn">Reset</button>
+      </div>
+    </div>
+    <div style="margin-top:10px">
+      <div class="small">Animation: Bezier path (smooth)</div>
+    </div>
+  </div>
+
+  <!-- center visualization -->
+  <div class="visual card">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+      <div style="font-weight:700">Cây Heap</div>
+      <div class="small">Click node để highlight</div>
+    </div>
+    <div id="treeWrap" class="tree-wrap">
+      <svg id="paths" style="position:absolute;left:0;top:0;width:100%;height:100%;pointer-events:none"></svg>
+    </div>
+    <div class="playback">
+      <div style="flex:1">
+        <div class="small">Step info</div>
+        <div id="stepInfo" class="steps"></div>
+      </div>
+      <div style="width:320px">
+        <div class="small">Mảng hiện tại</div>
+        <div id="arrBox" class="codebox" style="margin-top:8px">[]</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- right code panel -->
+  <div class="card log">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+      <div style="font-weight:700">Heap Sort Code</div>
+      <div class="small">Highlight theo step</div>
+    </div>
+    <pre id="codePanel"></pre>
+  </div>
+</div>
+
+<footer>Nhấn "Play" để chạy tự động — animation sử dụng đường cong Bezier.</footer>
+
+<script>
+const treeWrap = document.getElementById('treeWrap');
+const pathsSvg = document.getElementById('paths');
+const arrInput = document.getElementById('arrInput');
+const setBtn = document.getElementById('setBtn');
+const randomBtn = document.getElementById('randomBtn');
+const shuffleBtn = document.getElementById('shuffleBtn');
+const modeBtn = document.getElementById('modeBtn');
+const playBtn = document.getElementById('playBtn');
+const stepBack = document.getElementById('stepBack');
+const stepFwd = document.getElementById('stepFwd');
+const resetBtn = document.getElementById('resetBtn');
+const stepInfo = document.getElementById('stepInfo');
+const arrBox = document.getElementById('arrBox');
+const codePanel = document.getElementById('codePanel');
+const speedLabel = document.getElementById('speedLabel');
+
+let ARRAY=[4,10,3,5,1], NODE_MAP={}, steps=[], currentStep=0, playing=false, isMax=true, animating=false;
+let animationDuration=600;
+
+// code lines
+const HEAP_SORT_CODE=[
+'function heapSort(arr){',
+'  let n = arr.length;',
+'  for(let i = Math.floor(n/2)-1;i>=0;i--) heapify(n,i);',
+'  for(let i=n-1;i>0;i--){',
+'    swap(arr,0,i);',
+'    heapify(i,0);',
+'  }',
+'}',
+'',
+'function heapify(n,i){',
+'  let extreme = i;',
+'  let l = 2*i+1, r = 2*i+2;',
+'  if(l<n && compare(arr[l], arr[extreme])) extreme=l;',
+'  if(r<n && compare(arr[r], arr[extreme])) extreme=r;',
+'  if(extreme!==i){',
+'    swap(arr,i,extreme);',
+'    heapify(n,extreme);',
+'  }',
+'}',
+'',
+'function swap(a,i,j){ [a[i],a[j]]=[a[j],a[i]]; }'
+];
+codePanel.innerHTML=HEAP_SORT_CODE.map((l,i)=>`<div class="code-line" id="code-line-${i}">${l}</div>`).join('');
+const STEP_TO_CODE_LINE={compare:11, swap:16, call:8, sorted:16, done:0, none:-1, info:-1};
+
+function highlightCode(type){
+  document.querySelectorAll('.code-line').forEach(el=>el.classList.remove('active'));
+  const lineIdx=STEP_TO_CODE_LINE[type];
+  if(lineIdx>=0){const el=document.getElementById(`code-line-${lineIdx}`);if(el)el.classList.add('active');}
+}
+
+function clamp(v,a,b){return Math.max(a,Math.min(b,v))}
+function sleep(ms){return new Promise(r=>setTimeout(r,ms))}
+function parseInput(str){return str.split(',').map(s=>s.trim()).filter(s=>s!=='').map(Number).filter(n=>!Number.isNaN(n));}
+function randInt(a,b){return Math.floor(Math.random()*(b-a+1))+a}
+function randomArray(len=7,maxVal=99){return Array.from({length:len},()=>randInt(1,maxVal));}
+function shuffle(a){for(let i=a.length-1;i>0;i--){let j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}}
+
+function computePositions(arr){
+  const width=treeWrap.clientWidth, height=treeWrap.clientHeight;
+  const levels=Math.floor(Math.log2(arr.length))+1, pos={};
+  for(let i=0;i<arr.length;i++){
+    const level=Math.floor(Math.log2(i+1));
+    const levelStart=Math.pow(2,level)-1, indexInLevel=i-levelStart, nodesInLevel=Math.pow(2,level);
+    const padding=30, availW=width-padding*2;
+    const x=padding+(indexInLevel+0.5)*(availW/nodesInLevel);
+    const y=30+level*((height-60)/levels);
+    pos[i]={x,y};
+  }
+  return pos;
+}
+
+function clearNodes(){NODE_MAP={};pathsSvg.innerHTML='';treeWrap.querySelectorAll('.node').forEach(n=>n.remove());}
+function addCurvePath(p1,p2,id){const dx=p2.x-p1.x,dy=p2.y-p1.y,c1x=p1.x+dx*0.2,c1y=p1.y+30,c2x=p1.x+dx*0.8,c2y=p2.y-20;const path=document.createElementNS('http://www.w3.org/2000/svg','path');path.setAttribute('d',`M ${p1.x} ${p1.y} C ${c1x} ${c1y}, ${c2x} ${c2y}, ${p2.x} ${p2.y}`);path.setAttribute('fill','none');path.setAttribute('stroke','rgba(200,204,210,0.7)');path.setAttribute('stroke-width','2');path.setAttribute('id',id);pathsSvg.appendChild(path);return path;}
+function renderTree(arr){
+  clearNodes();
+  const pos=computePositions(arr);
+  for(let i=0;i<arr.length;i++){const l=2*i+1,r=2*i+2;if(l<arr.length)addCurvePath(pos[i],pos[l],`edge-${i}-${l}`);if(r<arr.length)addCurvePath(pos[i],pos[r],`edge-${i}-${r}`);}
+  for(let i=0;i<arr.length;i++){
+    const div=document.createElement('div');
+    div.className='node';
+    div.dataset.index=i;
+    div.textContent=arr[i];
+    div.style.left=pos[i].x+'px';
+    div.style.top=pos[i].y+'px';
+    div.addEventListener('click',()=>{div.classList.add('compare');setTimeout(()=>div.classList.remove('compare'),450);});
+    treeWrap.appendChild(div);
+    NODE_MAP[i]=div;
+  }
+  arrBox.textContent='['+arr.join(', ')+']';
+}
+
+function recordStep(desc, arrSnapshot, highlight){steps.push({desc,arr:[...arrSnapshot],highlight});}
+function clearSteps(){steps=[];currentStep=0;}
+function compareFunc(a,b){return isMax?(a>b):(a<b);}
+
+function heapSortWithSteps(arr){
+  clearSteps();
+  const a=[...arr];
+  const n=a.length;
+  function heapify(nLocal,i){
+    let extreme=i,left=2*i+1,right=2*i+2;
+    if(left<nLocal) recordStep(`So sánh idx ${i} với con trái idx ${left}`,a,{type:'compare',indices:[i,left]});
+    if(right<nLocal) recordStep(`So sánh idx ${i} với con phải idx ${right}`,a,{type:'compare',indices:[i,right]});
+    if(left<nLocal && compareFunc(a[left],a[extreme])) extreme=left;
+    if(right<nLocal && compareFunc(a[right],a[extreme])) extreme=right;
+    if(extreme!==i){recordStep(`Hoán đổi idx ${i} và idx ${extreme}`,a,{type:'swap',indices:[i,extreme]});[a[i],a[extreme]]=[a[extreme],a[i]];heapify(nLocal,extreme);}
+    else recordStep(`Không cần hoán đổi cho idx ${i}`,a,{type:'none',indices:[i]});
+  }
+  for(let i=Math.floor(n/2)-1;i>=0;i--){recordStep(`Heapify tại idx ${i}`,a,{type:'call',indices:[i]});heapify(n,i);}
+  recordStep('Max/Min-heap đã xây xong',a,{type:'info',indices:[]});
+  for(let i=n-1;i>0;i--){recordStep(`Hoán đổi root idx 0 và idx ${i}`,a,{type:'swap',indices:[0,i]});[a[0],a[i]]=[a[i],a[0]];recordStep(`Đặt idx ${i} về vị trí cuối (đã sắp xếp)`,a,{type:'sorted',indices:[i]});heapify(i,0);}
+  recordStep('Hoàn tất sắp xếp',a,{type:'done',indices:[]});
+}
+
+function highlightIndices(type,indices){Object.values(NODE_MAP).forEach(n=>n.classList.remove('compare','swap','sorted'));if(!indices)return;indices.forEach(i=>{const node=NODE_MAP[i];if(node){if(type==='compare')node.classList.add('compare');if(type==='swap')node.classList.add('swap');if(type==='sorted')node.classList.add('sorted');}});}
+
+async function animateSwap(i,j,targetArr){
+  return new Promise(async resolve=>{
+    animating=true;
+    const pos=computePositions(targetArr);
+    const nodeA=NODE_MAP[i],nodeB=NODE_MAP[j];
+    if(!nodeA||!nodeB){updateNodesAndPositions(targetArr);animating=false;resolve();return;}
+    const cloneA=nodeA.cloneNode(true),cloneB=nodeB.cloneNode(true);
+    const pA={x:parseFloat(nodeA.style.left),y:parseFloat(nodeA.style.top)},pB={x:parseFloat(nodeB.style.left),y:parseFloat(nodeB.style.top)};
+    cloneA.style.left=pA.x+'px';cloneA.style.top=pA.y+'px';cloneB.style.left=pB.x+'px';cloneB.style.top=pB.y+'px';
+    cloneA.classList.add('swap');cloneB.classList.add('swap');nodeA.style.opacity='0.2';nodeB.style.opacity='0.2';
+    treeWrap.appendChild(cloneA);treeWrap.appendChild(cloneB);
+
+    const pTargetA=pos[j],pTargetB=pos[i];
+    const c = {top:0,left:0};
+    const dur=animationDuration;
+    let start=null;
+    function step(timestamp){
+      if(!start) start=timestamp;
+      const t=clamp((timestamp-start)/dur,0,1);
+      const ease=t*(2-t);
+      cloneA.style.left=pA.x+(pTargetA.x-pA.x)*ease+'px';
+      cloneA.style.top=pA.y+(pTargetA.y-pA.y)*ease+'px';
+      cloneB.style.left=pB.x+(pTargetB.x-pB.x)*ease+'px';
+      cloneB.style.top=pB.y+(pTargetB.y-pB.y)*ease+'px';
+      if(t<1) requestAnimationFrame(step);
+      else{
+        cloneA.remove();cloneB.remove();
+        [NODE_MAP[i].textContent,NODE_MAP[j].textContent]=[NODE_MAP[j].textContent,NODE_MAP[i].textContent];
+        nodeA.style.opacity='1';nodeB.style.opacity='1';
+        animating=false;resolve();
+      }
+    }
+    requestAnimationFrame(step);
+  });
+}
+
+function updateNodesAndPositions(arr){const pos=computePositions(arr);for(let i=0;i<arr.length;i++){const n=NODE_MAP[i];if(n){n.style.left=pos[i].x+'px';n.style.top=pos[i].y+'px';n.textContent=arr[i];}}arrBox.textContent='['+arr.join(', ')+']';}
+
+async function renderStep(idx){
+  const st=steps[idx];
+  if(!st) return;
+  stepInfo.textContent=`Step ${idx+1}/${steps.length}: ${st.desc}`;
+  arrBox.textContent='['+st.arr.join(', ')+']';
+  highlightCode(st.highlight?.type||'none');
+  highlightIndices(st.highlight?.type||'none',st.highlight?.indices||[]);
+  if(st.highlight?.type==='swap'){
+    const [i,j]=st.highlight.indices;
+    await animateSwap(i,j,st.arr);
+  } else {updateNodesAndPositions(st.arr);}
+}
+
+async function playSteps(){
+  playing=true;
+  while(currentStep<steps.length){if(animating)await sleep(50);await renderStep(currentStep);currentStep++;await sleep(animationDuration/2);}
+  playing=false;
+}
+
+function resetSteps(){currentStep=0;updateNodesAndPositions(ARRAY);highlightIndices('none',[]);stepInfo.textContent='Ready';}
+
+function init(){renderTree(ARRAY);heapSortWithSteps(ARRAY);resetSteps();}
+setBtn.onclick=()=>{ARRAY=parseInput(arrInput.value);init();}
+randomBtn.onclick=()=>{ARRAY=randomArray();arrInput.value=ARRAY.join(',');init();}
+shuffleBtn.onclick=()=>{shuffle(ARRAY);arrInput.value=ARRAY.join(',');init();}
+modeBtn.onclick=()=>{isMax=!isMax;modeBtn.textContent=isMax?'Max-Heap':'Min-Heap';init();}
+playBtn.onclick=()=>{if(!playing)playSteps();}
+stepFwd.onclick=async()=>{if(currentStep<steps.length)await renderStep(currentStep++);}
+stepBack.onclick=async()=>{if(currentStep>0)currentStep--;await renderStep(currentStep);}
+resetBtn.onclick=()=>{resetSteps();}
+
+init();
+</script>
+</body>
+</html>
